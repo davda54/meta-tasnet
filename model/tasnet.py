@@ -37,7 +37,7 @@ class TasNet(nn.Module):
 
         self.dropout = nn.Dropout2d(args.dropout)
         self.mask = MaskingModule(not independent_params, args.E_1, args.E_2, N, B, H, args.layers, args.stack, args.kernel, args.residual_bias, partial_input=partial_input)
-        self.instrument_embedding = nn.Embedding(self.C, args.E_1) if not independent_params and args.E_1 is not None else None
+        self.instrument_embedding = nn.Embedding(self.C, args.E_1) if not independent_params else None
 
         self.args = args
 
@@ -73,8 +73,11 @@ class TasNet(nn.Module):
         else:
             separated_gold_latents = None
 
-        instruments = torch.arange(0, self.C, device=mix_latent.device)  # shape: (4)
-        instruments = self.instrument_embedding(instruments)  # shape: (4, E)
+        if self.instrument_embedding is not None:
+            instruments = torch.arange(0, self.C, device=mix_latent.device)  # shape: (4)
+            instruments = self.instrument_embedding(instruments)  # shape: (4, E)
+        else:
+            instruments = None
 
         # generate masks
         mask_input = self.dropout(mix_latents.view(batch_size*self.C, self.N, -1).unsqueeze(-1)).squeeze(-1).view(batch_size, self.C, self.N, -1)  # shape: (B, 4, N, T')
@@ -121,8 +124,11 @@ class TasNet(nn.Module):
             mask_input = x  # shape: (1, 4, N, T')
         del partial_input
 
-        instruments = torch.arange(0, self.C, device=x.device)  # shape: (5)
-        instruments = self.instrument_embedding(instruments)  # shape: (5, E)
+        if self.instrument_embedding is not None:
+            instruments = torch.arange(0, self.C, device=mix_latent.device)  # shape: (4)
+            instruments = self.instrument_embedding(instruments)  # shape: (4, E)
+        else:
+            instruments = None
 
         masks = self.mask(instruments, mask_input)  # shape: (1, 4, N, T')
         del mask_input
